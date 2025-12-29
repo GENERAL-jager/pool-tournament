@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trophy, User, Calendar, RotateCcw, Save, Share2, Download, Upload, AlertCircle } from 'lucide-react';
 
 export default function PoolTournament() {
-  const [players, setPlayers] = useState(['Jonte', 'Sammy', 'Gitai']);
+  const [players, setPlayers] = useState(['Jonte', 'Sammy', 'Gitai', 'Paul']);
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [games, setGames] = useState([]);
   const [currentDay, setCurrentDay] = useState(1);
@@ -23,12 +23,10 @@ export default function PoolTournament() {
 
   const loadTournament = async () => {
     try {
-      // Check if there's a tournament ID in the URL
       const urlParams = new URLSearchParams(window.location.search);
       const urlTournamentId = urlParams.get('tournament');
       
       if (urlTournamentId) {
-        // Load shared tournament
         setTournamentId(urlTournamentId);
         const result = await window.storage.get(`tournament:${urlTournamentId}`, true);
         
@@ -42,7 +40,6 @@ export default function PoolTournament() {
         }
       }
       
-      // Try to load from personal storage
       const personalResult = await window.storage.get('my-tournament');
       
       if (personalResult && personalResult.value) {
@@ -52,7 +49,6 @@ export default function PoolTournament() {
         setTournamentId(data.tournamentId || '');
         setSaveStatus('Loaded saved tournament');
       } else {
-        // Initialize new tournament
         const newGames = initializeGames();
         const newId = generateTournamentId();
         setGames(newGames);
@@ -61,7 +57,6 @@ export default function PoolTournament() {
       }
     } catch (error) {
       console.error('Error loading tournament:', error);
-      // Initialize new tournament on error
       const newGames = initializeGames();
       const newId = generateTournamentId();
       setGames(newGames);
@@ -77,39 +72,45 @@ export default function PoolTournament() {
 
   const initializeGames = () => {
     const allGames = [];
-    const rotation = [
-      [0, 1, 2], [1, 2, 0], [2, 0, 1]
-    ];
+    // For 4 players, we need proper round-robin rotations
+    const rotations = generateRotations();
     
     let gameNum = 1;
     
-    // Days 1-3: 7 games each
-    for (let day = 1; day <= 3; day++) {
-      for (let game = 0; game < 7; game++) {
-        const rotationIndex = game % 3;
+    // Create 4 days with 10 games each
+    for (let day = 1; day <= 4; day++) {
+      for (let game = 0; game < 10; game++) {
+        // Use a different rotation for each game to ensure fair play
+        const rotationIndex = (day - 1) * 10 + game;
+        const rotation = rotations[rotationIndex % rotations.length];
+        
         allGames.push({
           id: gameNum,
           day: day,
-          order: rotation[rotationIndex],
+          order: rotation,
           winner: null
         });
         gameNum++;
       }
     }
     
-    // Day 4: 7 games
-    for (let game = 0; game < 7; game++) {
-      const rotationIndex = game % 3;
-      allGames.push({
-        id: gameNum,
-        day: 4,
-        order: rotation[rotationIndex],
-        winner: null
-      });
-      gameNum++;
+    return allGames;
+  };
+
+  const generateRotations = () => {
+    // Generate all unique 4-player rotations for fair tournament play
+    const rotations = [];
+    const players = [0, 1, 2, 3];
+    
+    // Create rotations for different starting positions
+    for (let start = 0; start < 4; start++) {
+      // Different player orders
+      rotations.push([start, (start + 1) % 4, (start + 2) % 4, (start + 3) % 4]);
+      rotations.push([start, (start + 2) % 4, (start + 3) % 4, (start + 1) % 4]);
+      rotations.push([start, (start + 3) % 4, (start + 1) % 4, (start + 2) % 4]);
     }
     
-    return allGames;
+    return rotations;
   };
 
   const autoSave = async () => {
@@ -121,10 +122,7 @@ export default function PoolTournament() {
         lastUpdated: new Date().toISOString()
       };
       
-      // Save to personal storage
       await window.storage.set('my-tournament', JSON.stringify(data));
-      
-      // Save to shared storage so others can view
       await window.storage.set(`tournament:${tournamentId}`, JSON.stringify(data), true);
       
       setSaveStatus('✓ Saved');
@@ -238,46 +236,43 @@ export default function PoolTournament() {
       .sort((a, b) => b.wins - a.wins);
   };
 
-  const gamesPerDay = [7, 7, 7, 7];
+  const gamesPerDay = [10, 10, 10, 10]; // 10 games per day for 4 days
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading tournament...</div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-600 font-light">Loading tournament...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-2xl p-6 mb-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
-            <div className="flex items-center gap-3">
-              <Trophy className="w-8 h-8 text-yellow-500" />
-              <div>
-                <h1 className="text-3xl font-bold text-gray-800">Pool Tournament Tracker</h1>
-                <p className="text-sm text-gray-500">Tournament ID: {tournamentId.slice(-8)}</p>
-              </div>
+        <div className="mb-8">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-6">
+            <div>
+              <h1 className="text-3xl font-light text-gray-900 tracking-tight mb-2">4-Player Pool Tournament</h1>
+              <p className="text-gray-500 text-sm font-mono">ID: {tournamentId.slice(-8)}</p>
             </div>
             
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={shareLink}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+                className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 transition-colors flex items-center gap-2"
               >
                 <Share2 className="w-4 h-4" />
                 Share
               </button>
               <button
                 onClick={exportData}
-                className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+                className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 transition-colors flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
                 Export
               </button>
-              <label className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition cursor-pointer">
+              <label className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 transition-colors flex items-center gap-2 cursor-pointer">
                 <Upload className="w-4 h-4" />
                 Import
                 <input
@@ -289,7 +284,7 @@ export default function PoolTournament() {
               </label>
               <button
                 onClick={resetTournament}
-                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                className="px-4 py-2 text-sm border border-red-300 text-red-600 rounded hover:bg-red-50 transition-colors flex items-center gap-2"
               >
                 <RotateCcw className="w-4 h-4" />
                 Reset
@@ -297,160 +292,181 @@ export default function PoolTournament() {
             </div>
           </div>
 
-          {/* Save Status */}
           {saveStatus && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center gap-2">
+            <div className="mb-4 p-3 bg-gray-100 rounded text-gray-600 text-sm flex items-center gap-2">
               <Save className="w-4 h-4" />
               {saveStatus}
             </div>
           )}
 
-          {/* Share URL Display */}
           {shareUrl && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-700 mb-2 font-semibold">Share this link with other players:</p>
-              <code className="text-xs bg-white p-2 rounded block overflow-x-auto">{shareUrl}</code>
+            <div className="mb-4 p-3 bg-gray-100 rounded">
+              <p className="text-sm text-gray-700 mb-2 font-medium">Share link:</p>
+              <code className="text-xs font-mono bg-white p-2 rounded block overflow-x-auto border">
+                {shareUrl}
+              </code>
             </div>
           )}
 
-          {/* Info Banner */}
-          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div className="mb-6 p-3 bg-gray-100 rounded text-gray-600 text-sm flex items-start gap-2 border-l-4 border-gray-400">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <div>
-              <strong>Auto-save enabled:</strong> All changes are automatically saved and shared online. Other players can view live updates using the share link.
+              <strong className="font-medium">4 Players × 10 Games/Day × 4 Days = 40 Total Games</strong>
             </div>
           </div>
-          
-          {/* Players */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {players.map((player, index) => (
-              <div key={index} className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border-2 border-green-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <User className="w-5 h-5 text-green-700" />
-                  {editingPlayer === index ? (
-                    <input
-                      type="text"
-                      value={player}
-                      onChange={(e) => updatePlayerName(index, e.target.value)}
-                      onBlur={() => setEditingPlayer(null)}
-                      onKeyDown={(e) => e.key === 'Enter' && setEditingPlayer(null)}
-                      className="flex-1 px-2 py-1 border rounded"
-                      autoFocus
-                    />
-                  ) : (
-                    <span
-                      onClick={() => setEditingPlayer(index)}
-                      className="flex-1 font-semibold text-gray-800 cursor-pointer hover:text-green-700"
-                    >
-                      {player}
-                    </span>
-                  )}
-                </div>
-                <div className="text-2xl font-bold text-green-700">
-                  {getWinCount(index)} wins
-                </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Left Column - Players & Leaderboard */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Players */}
+            <div className="bg-white rounded-lg border p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4 tracking-tight">Players</h2>
+              <div className="space-y-3">
+                {players.map((player, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100">
+                        <span className="font-medium text-gray-700">{player.charAt(0)}</span>
+                      </div>
+                      {editingPlayer === index ? (
+                        <input
+                          type="text"
+                          value={player}
+                          onChange={(e) => updatePlayerName(index, e.target.value)}
+                          onBlur={() => setEditingPlayer(null)}
+                          onKeyDown={(e) => e.key === 'Enter' && setEditingPlayer(null)}
+                          className="px-2 py-1 border rounded font-medium focus:outline-none focus:ring-1 focus:ring-gray-400"
+                          autoFocus
+                        />
+                      ) : (
+                        <span
+                          onClick={() => setEditingPlayer(index)}
+                          className="font-medium text-gray-900 cursor-pointer hover:text-gray-600"
+                        >
+                          {player}
+                        </span>
+                      )}
+                    </div>
+                    <div className="font-medium text-gray-700">
+                      {getWinCount(index)} <span className="text-gray-400 text-sm">wins</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* Leaderboard */}
+            <div className="bg-white rounded-lg border p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Trophy className="w-5 h-5 text-gray-400" />
+                <h2 className="text-lg font-medium text-gray-900 tracking-tight">Standings</h2>
+              </div>
+              <div className="space-y-3">
+                {getLeaderboard().map((player, index) => (
+                  <div key={player.index} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-500 w-6">#{index + 1}</span>
+                      <span className="font-medium text-gray-900">{player.name}</span>
+                    </div>
+                    <span className="font-medium text-gray-700">{player.wins}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {/* Leaderboard */}
-          <div className="bg-gradient-to-r from-yellow-50 to-amber-50 p-4 rounded-lg border-2 border-yellow-300">
-            <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <Trophy className="w-6 h-6 text-yellow-600" />
-              Current Standings
-            </h2>
-            <div className="space-y-2">
-              {getLeaderboard().map((player, index) => (
-                <div key={player.index} className="flex items-center justify-between bg-white p-3 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-gray-400">#{index + 1}</span>
-                    <span className="font-semibold text-gray-800">{player.name}</span>
+          {/* Right Column - Games & Controls */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Day Selector */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {[1, 2, 3, 4].map(day => (
+                <button
+                  key={day}
+                  onClick={() => setCurrentDay(day)}
+                  className={`flex items-center gap-2 px-4 py-3 rounded border transition-colors whitespace-nowrap ${
+                    currentDay === day
+                      ? 'bg-gray-900 text-white border-gray-900'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" />
+                  <div className="text-left">
+                    <div className="font-medium">Day {day}</div>
+                    <div className="text-xs">{gamesPerDay[day - 1]} games</div>
                   </div>
-                  <span className="text-xl font-bold text-green-700">{player.wins}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Games Grid - 2 columns for 10 games */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {getDayGames(currentDay).map((game) => (
+                <div key={game.id} className="bg-white rounded-lg border p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-medium text-gray-900">Game {game.id}</h3>
+                    <span className="text-sm text-gray-500">D{game.day}</span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {game.order.map((playerIndex, position) => (
+                      <button
+                        key={playerIndex}
+                        onClick={() => handleWinner(game.id, playerIndex)}
+                        className={`w-full p-3 rounded border text-left transition-all ${
+                          game.winner === playerIndex
+                            ? 'bg-gray-900 text-white border-gray-900 transform scale-[1.02]'
+                            : 'bg-white text-gray-800 border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-xs text-gray-400 mb-1">
+                              {position === 0 ? '1st' : position === 1 ? '2nd' : position === 2 ? '3rd' : '4th'}
+                            </div>
+                            <div className="font-medium text-sm">{players[playerIndex]}</div>
+                          </div>
+                          {game.winner === playerIndex && (
+                            <Trophy className="w-4 h-4 text-yellow-300" />
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {game.winner === null && (
+                    <p className="text-xs text-gray-400 mt-3 text-center">Click winner</p>
+                  )}
                 </div>
               ))}
             </div>
-          </div>
-        </div>
 
-        {/* Day Selector */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          {[1, 2, 3, 4].map(day => (
-            <button
-              key={day}
-              onClick={() => setCurrentDay(day)}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition whitespace-nowrap ${
-                currentDay === day
-                  ? 'bg-white text-green-700 shadow-lg'
-                  : 'bg-white/80 text-gray-600 hover:bg-white'
-              }`}
-            >
-              <Calendar className="w-5 h-5" />
-              Day {day} ({gamesPerDay[day - 1]} games)
-            </button>
-          ))}
-        </div>
-
-        {/* Games Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {getDayGames(currentDay).map((game) => (
-            <div key={game.id} className="bg-white rounded-lg shadow-lg p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-800">Game {game.id}</h3>
-                <span className="text-sm text-gray-500">Day {game.day}</span>
+            {/* Progress Bar */}
+            <div className="bg-white rounded-lg border p-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-gray-900">Tournament Progress</h3>
+                <span className="text-sm text-gray-600">
+                  {games.filter(g => g.winner !== null).length} / 40 games
+                </span>
               </div>
-              
-              <div className="space-y-2">
-                {game.order.map((playerIndex, position) => (
-                  <button
-                    key={playerIndex}
-                    onClick={() => handleWinner(game.id, playerIndex)}
-                    className={`w-full p-3 rounded-lg text-left transition ${
-                      game.winner === playerIndex
-                        ? 'bg-green-600 text-white shadow-lg transform scale-105'
-                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className={`text-xs ${game.winner === playerIndex ? 'text-green-100' : 'text-gray-500'}`}>
-                          {position === 0 ? '1st Turn' : position === 1 ? '2nd Turn' : '3rd Turn'}
-                        </span>
-                        <div className="font-semibold">{players[playerIndex]}</div>
-                      </div>
-                      {game.winner === playerIndex && (
-                        <Trophy className="w-5 h-5" />
-                      )}
-                    </div>
-                  </button>
-                ))}
+              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gray-900 transition-all duration-500"
+                  style={{
+                    width: `${(games.filter(g => g.winner !== null).length / 40) * 100}%`
+                  }}
+                />
               </div>
-              
-              {game.winner === null && (
-                <p className="text-sm text-gray-500 mt-3 text-center">Click winner to record result</p>
-              )}
+              <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs text-gray-500">
+                <div>Day 1: {getDayGames(1).filter(g => g.winner !== null).length}/10</div>
+                <div>Day 2: {getDayGames(2).filter(g => g.winner !== null).length}/10</div>
+                <div>Day 3: {getDayGames(3).filter(g => g.winner !== null).length}/10</div>
+                <div>Day 4: {getDayGames(4).filter(g => g.winner !== null).length}/10</div>
+              </div>
             </div>
-          ))}
-        </div>
-
-        {/* Tournament Progress */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-3">Tournament Progress</h3>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 bg-gray-200 rounded-full h-4">
-              <div
-                className="bg-green-600 h-4 rounded-full transition-all duration-500"
-                style={{
-                  width: `${(games.filter(g => g.winner !== null).length / 28) * 100}%`
-                }}
-              />
-            </div>
-            <span className="text-sm font-semibold text-gray-700">
-              {games.filter(g => g.winner !== null).length} / 25 games
-            </span>
           </div>
         </div>
       </div>
     </div>
   );
-                         }
+           }
