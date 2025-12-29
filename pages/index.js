@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trophy, User, Calendar, RotateCcw, Save, Share2, Download, Upload, AlertCircle } from 'lucide-react';
 
 export default function PoolTournament() {
-  const [players, setPlayers] = useState(['Player A', 'Player B', 'Player C']);
+  const [players, setPlayers] = useState(['jonte', 'Sammy', 'Gitai']);
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [games, setGames] = useState([]);
   const [currentDay, setCurrentDay] = useState(1);
